@@ -81,7 +81,7 @@ private:
   void writeRegister(uint16_t address, uint16_t value);
 
   // Persistent settings storage
-  void loadPersistedSettings(uint8_t defaultSlaveAddress,
+  bool loadPersistedSettings(uint8_t defaultSlaveAddress,
                              uint32_t defaultBaudRate);
   void saveSlaveAddress();
   void saveBaudRate();

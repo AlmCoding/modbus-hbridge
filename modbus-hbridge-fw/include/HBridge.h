@@ -23,9 +23,10 @@ private:
   friend class Modbus;
 
   static constexpr uint32_t kDefaultPwmFrequencyHz = 1000; // 1 kHz
-  static constexpr uint8_t kPwmResolutionBits = 16;
   static constexpr uint8_t kLeftChannel = 0;
   static constexpr uint8_t kRightChannel = 1;
+
+  uint8_t getPwmResolutionBits(uint32_t freqHz) const;
 
   uint8_t _lIsPin;
   uint8_t _lEnPin;

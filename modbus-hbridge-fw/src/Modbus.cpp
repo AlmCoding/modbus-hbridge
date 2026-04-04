@@ -1,6 +1,16 @@
 #include "Modbus.h"
+#include "common.h"
 #include <HardwareSerial.h>
 #include <Preferences.h>
+
+#define DEBUG_ENABLE_MODBUS 1
+#if ((DEBUG_ENABLE_MODBUS == 1) && (ENABLE_DEBUG_OUTPUT == 1))
+#define DEBUG_INFO(f, ...) debugPrint("[INF][Modbus]", f, ##__VA_ARGS__)
+#define DEBUG_ERROR(f, ...) debugPrint("[ERR][Modbus]", f, ##__VA_ARGS__)
+#else
+#define DEBUG_INFO(...)
+#define DEBUG_ERROR(...)
+#endif
 
 namespace {
 constexpr const char *kPrefsNamespace = "modbus";
@@ -17,7 +27,11 @@ Modbus::Modbus(uint8_t rxPin, uint8_t txPin, uint8_t rePin, HBridge &hbridge)
       _baudRateReconfigPending(false), _rxIndex(0), _lastRxTime(0) {}
 
 void Modbus::begin(uint8_t slaveAddr, uint32_t baudRate) {
-  loadPersistedSettings(slaveAddr, baudRate);
+  if (!loadPersistedSettings(slaveAddr, baudRate)) {
+    DEBUG_ERROR("Failed to load persisted settings, rewriting defaults!");
+    saveSlaveAddress();
+    saveBaudRate();
+  }
 
   // Initialize RS485 control pin
   pinMode(_rePin, OUTPUT);
@@ -25,21 +39,26 @@ void Modbus::begin(uint8_t slaveAddr, uint32_t baudRate) {
 
   // Initialize UART1 with selected pins
   Serial1.begin(_baudRate, SERIAL_8N1, _rxPin, _txPin);
+  DEBUG_INFO("Modbus initialized.");
 }
 
-void Modbus::loadPersistedSettings(uint8_t defaultSlaveAddress,
+bool Modbus::loadPersistedSettings(uint8_t defaultSlaveAddress,
                                    uint32_t defaultBaudRate) {
   _slaveAddress = defaultSlaveAddress;
   _baudRate = defaultBaudRate;
 
   Preferences prefs;
   if (!prefs.begin(kPrefsNamespace, true)) {
-    return;
+    return false;
   }
 
   _slaveAddress = prefs.getUChar(kPrefsKeySlaveAddress, _slaveAddress);
   _baudRate = prefs.getUInt(kPrefsKeyBaudRate, _baudRate);
   prefs.end();
+
+  DEBUG_INFO("Loaded settings - Slave Address: %u, Baud Rate: %u",
+             _slaveAddress, _baudRate);
+  return true;
 }
 
 void Modbus::saveSlaveAddress() {
@@ -50,6 +69,7 @@ void Modbus::saveSlaveAddress() {
 
   prefs.putUChar(kPrefsKeySlaveAddress, _slaveAddress);
   prefs.end();
+  DEBUG_INFO("Saved slave address: %u", _slaveAddress);
 }
 
 void Modbus::saveBaudRate() {
@@ -60,6 +80,7 @@ void Modbus::saveBaudRate() {
 
   prefs.putUInt(kPrefsKeyBaudRate, _baudRate);
   prefs.end();
+  DEBUG_INFO("Saved baud rate: %u", _baudRate);
 }
 
 void Modbus::update() {
@@ -115,16 +136,20 @@ void Modbus::handleModbusCommand(const uint8_t *request, size_t requestLen) {
     break;
   default:
     // Unknown function code - could send exception response
+    DEBUG_ERROR("Received unsupported function code: 0x%02X", functionCode);
     break;
   }
+  DEBUG_INFO(DIVIDER);
 }
 
 void Modbus::handleFunctionCode03(const uint8_t *request, size_t requestLen) {
   // FC03: Read Holding Registers
   // Request: Address(1) + FC(1) + StartAddr(2) + Quantity(2) + CRC(2)
   // Response: Address(1) + FC(1) + ByteCount(1) + Data(2*N) + CRC(2)
+  DEBUG_INFO("Handling FC03: Read Holding Registers");
 
   if (requestLen != 8) {
+    DEBUG_ERROR("Invalid FC03 request length: %u", requestLen);
     return;
   }
 
@@ -132,6 +157,7 @@ void Modbus::handleFunctionCode03(const uint8_t *request, size_t requestLen) {
   uint16_t quantity = (request[4] << 8) | request[5];
 
   if (quantity == 0 || quantity > REG_MAX) {
+    DEBUG_ERROR("Invalid FC03 request quantity: %u", quantity);
     return; // Invalid quantity
   }
 
@@ -159,8 +185,10 @@ void Modbus::handleFunctionCode06(const uint8_t *request, size_t requestLen) {
   // FC06: Write Single Register
   // Request: Address(1) + FC(1) + RegAddr(2) + RegValue(2) + CRC(2)
   // Response: Echo of request
+  DEBUG_INFO("Handling FC06: Write Single Register");
 
   if (requestLen != 8) {
+    DEBUG_ERROR("Invalid FC06 request length: %u", requestLen);
     return;
   }
 
@@ -178,8 +206,10 @@ void Modbus::handleFunctionCode16(const uint8_t *request, size_t requestLen) {
   // Request: Address(1) + FC(1) + StartAddr(2) + Quantity(2) +
   // ByteCount(1) + Data(2*N) + CRC(2)
   // Response: Address(1) + FC(1) + StartAddr(2) + Quantity(2) + CRC(2)
+  DEBUG_INFO("Handling FC16: Write Multiple Registers");
 
   if (requestLen < 9) {
+    DEBUG_ERROR("Invalid FC16 request length: %u", requestLen);
     return;
   }
 
@@ -188,6 +218,8 @@ void Modbus::handleFunctionCode16(const uint8_t *request, size_t requestLen) {
   uint8_t byteCount = request[6];
 
   if (byteCount != quantity * 2 || requestLen < (9 + byteCount)) {
+    DEBUG_ERROR("Invalid FC16 request data: byteCount=%u, requestLen=%u",
+                byteCount, requestLen);
     return; // Invalid data
   }
 
@@ -214,6 +246,8 @@ void Modbus::handleFunctionCode16(const uint8_t *request, size_t requestLen) {
 }
 
 uint16_t Modbus::readRegister(uint16_t address) {
+  DEBUG_INFO("Reading register: 0x%04X", address);
+
   switch (address) {
   case REG_SLAVE_ADDRESS:
     return _slaveAddress;
@@ -240,6 +274,8 @@ uint16_t Modbus::readRegister(uint16_t address) {
 }
 
 void Modbus::writeRegister(uint16_t address, uint16_t value) {
+  DEBUG_INFO("Writing register: 0x%04X, Value: 0x%04X", address, value);
+
   switch (address) {
   case REG_SLAVE_ADDRESS:
     if (value <= 0xFF) {
@@ -319,6 +355,7 @@ void Modbus::sendData(const uint8_t *data, size_t len) {
   if (_baudRateReconfigPending) {
     Serial1.begin(_baudRate, SERIAL_8N1, _rxPin, _txPin);
     _baudRateReconfigPending = false;
+    DEBUG_INFO("Reconfigured baud rate to %u", _baudRate);
   }
 }
 
