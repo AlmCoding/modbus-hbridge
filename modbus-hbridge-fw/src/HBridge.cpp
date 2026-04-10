@@ -15,7 +15,16 @@ HBridge::HBridge(uint8_t lIsPin, uint8_t lEnPin, uint8_t lPwmPin,
     : _lIsPin(lIsPin), _lEnPin(lEnPin), _lPwmPin(lPwmPin), //
       _rIsPin(rIsPin), _rEnPin(rEnPin), _rPwmPin(rPwmPin),
       _leftFreqHz(kDefaultPwmFrequencyHz), _rightFreqHz(kDefaultPwmFrequencyHz),
-      _leftDuty16(0), _rightDuty16(0) {
+      _leftResolutionBits(getPwmResolutionBits(kDefaultPwmFrequencyHz)),
+      _rightResolutionBits(getPwmResolutionBits(kDefaultPwmFrequencyHz)),
+      _leftDuty16(0), _rightDuty16(0), _leftEnabled(true), _rightEnabled(true),
+      _initialized(false) {}
+
+void HBridge::begin() {
+  if (_initialized) {
+    return;
+  }
+
   pinMode(_lIsPin, INPUT);
   pinMode(_rIsPin, INPUT);
 
@@ -24,23 +33,30 @@ HBridge::HBridge(uint8_t lIsPin, uint8_t lEnPin, uint8_t lPwmPin,
   digitalWrite(_lEnPin, HIGH);
   digitalWrite(_rEnPin, HIGH);
 
-  ledcSetup(kLeftChannel, _leftFreqHz, getPwmResolutionBits(_leftFreqHz));
-  ledcSetup(kRightChannel, _rightFreqHz, getPwmResolutionBits(_rightFreqHz));
+  _leftResolutionBits = getPwmResolutionBits(_leftFreqHz);
+  _rightResolutionBits = getPwmResolutionBits(_rightFreqHz);
+
+  ledcSetup(kLeftChannel, _leftFreqHz, _leftResolutionBits);
+  ledcSetup(kRightChannel, _rightFreqHz, _rightResolutionBits);
   ledcAttachPin(_lPwmPin, kLeftChannel);
   ledcAttachPin(_rPwmPin, kRightChannel);
 
-  ledcWrite(kLeftChannel, _leftDuty16);
-  ledcWrite(kRightChannel, _rightDuty16);
+  ledcWrite(kLeftChannel, dutyToResolution(_leftDuty16, _leftResolutionBits));
+  ledcWrite(kRightChannel,
+            dutyToResolution(_rightDuty16, _rightResolutionBits));
+
+  _initialized = true;
 }
 
 void HBridge::setLeftPwm(uint16_t duty) {
   _leftDuty16 = duty;
-  ledcWrite(kLeftChannel, _leftDuty16);
+  ledcWrite(kLeftChannel, dutyToResolution(_leftDuty16, _leftResolutionBits));
 }
 
 void HBridge::setRightPwm(uint16_t duty) {
   _rightDuty16 = duty;
-  ledcWrite(kRightChannel, _rightDuty16);
+  ledcWrite(kRightChannel,
+            dutyToResolution(_rightDuty16, _rightResolutionBits));
 }
 
 void HBridge::setLeftFreq(uint16_t freqHz) {
@@ -49,8 +65,9 @@ void HBridge::setLeftFreq(uint16_t freqHz) {
   }
 
   _leftFreqHz = freqHz;
-  ledcSetup(kLeftChannel, _leftFreqHz, getPwmResolutionBits(_leftFreqHz));
-  ledcWrite(kLeftChannel, _leftDuty16);
+  _leftResolutionBits = getPwmResolutionBits(_leftFreqHz);
+  ledcSetup(kLeftChannel, _leftFreqHz, _leftResolutionBits);
+  ledcWrite(kLeftChannel, dutyToResolution(_leftDuty16, _leftResolutionBits));
 }
 
 void HBridge::setRightFreq(uint16_t freqHz) {
@@ -59,8 +76,10 @@ void HBridge::setRightFreq(uint16_t freqHz) {
   }
 
   _rightFreqHz = freqHz;
-  ledcSetup(kRightChannel, _rightFreqHz, getPwmResolutionBits(_rightFreqHz));
-  ledcWrite(kRightChannel, _rightDuty16);
+  _rightResolutionBits = getPwmResolutionBits(_rightFreqHz);
+  ledcSetup(kRightChannel, _rightFreqHz, _rightResolutionBits);
+  ledcWrite(kRightChannel,
+            dutyToResolution(_rightDuty16, _rightResolutionBits));
 }
 
 void HBridge::enableLeft(bool enable) {
@@ -74,11 +93,14 @@ void HBridge::enableRight(bool enable) {
 }
 
 uint8_t HBridge::getPwmResolutionBits(uint32_t freqHz) const {
+  /*
   if (freqHz <= 1000U) {
     return 16U;
   } else if (freqHz <= 2000U) {
     return 15U;
-  } else if (freqHz <= 4000U) {
+  } else
+   */
+  if (freqHz <= 4000U) {
     return 14U;
   } else if (freqHz <= 8000U) {
     return 13U;
@@ -88,4 +110,13 @@ uint8_t HBridge::getPwmResolutionBits(uint32_t freqHz) const {
     return 11U;
   }
   return 10U;
+}
+
+uint16_t HBridge::dutyToResolution(uint16_t duty16,
+                                   uint8_t resolutionBits) const {
+  if (resolutionBits >= kDutyInputBits) {
+    return duty16;
+  }
+
+  return duty16 >> (kDutyInputBits - resolutionBits);
 }
