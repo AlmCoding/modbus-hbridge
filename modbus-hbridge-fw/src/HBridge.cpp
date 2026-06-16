@@ -17,8 +17,9 @@ HBridge::HBridge(uint8_t lIsPin, uint8_t lEnPin, uint8_t lPwmPin,
       _leftFreqHz(kDefaultPwmFrequencyHz), _rightFreqHz(kDefaultPwmFrequencyHz),
       _leftResolutionBits(getPwmResolutionBits(kDefaultPwmFrequencyHz)),
       _rightResolutionBits(getPwmResolutionBits(kDefaultPwmFrequencyHz)),
-      _leftDuty16(0), _rightDuty16(0), _leftEnabled(true), _rightEnabled(true),
-      _initialized(false) {}
+  _leftDuty16(0), _rightDuty16(0), _leftMilliAmps(0),
+  _rightMilliAmps(0), _lastCurrentSensePollMs(0), _leftEnabled(true),
+  _rightEnabled(true), _initialized(false) {}
 
 void HBridge::begin() {
   if (_initialized) {
@@ -27,6 +28,9 @@ void HBridge::begin() {
 
   pinMode(_lIsPin, INPUT);
   pinMode(_rIsPin, INPUT);
+  analogReadResolution(12);
+  analogSetPinAttenuation(_lIsPin, kCurrentSenseAttenuation);
+  analogSetPinAttenuation(_rIsPin, kCurrentSenseAttenuation);
 
   pinMode(_lEnPin, OUTPUT);
   pinMode(_rEnPin, OUTPUT);
@@ -45,7 +49,26 @@ void HBridge::begin() {
   ledcWrite(kRightChannel,
             dutyToResolution(_rightDuty16, _rightResolutionBits));
 
+  _lastCurrentSensePollMs = millis() - kCurrentSensePollIntervalMs;
   _initialized = true;
+}
+
+void HBridge::poll() {
+  const uint32_t now = millis();
+  if ((now - _lastCurrentSensePollMs) < kCurrentSensePollIntervalMs) {
+    return;
+  }
+  _lastCurrentSensePollMs = now;
+
+  const uint32_t leftMilliVolts = analogReadMilliVolts(_lIsPin);
+  const uint32_t rightMilliVolts = analogReadMilliVolts(_rIsPin);
+    _leftMilliAmps = static_cast<uint16_t>(
+      (leftMilliVolts * kCurrentSenseMilliVoltToMilliAmpFactor) + 0.5f);
+    _rightMilliAmps = static_cast<uint16_t>(
+      (rightMilliVolts * kCurrentSenseMilliVoltToMilliAmpFactor) + 0.5f);
+
+  DEBUG_INFO("IS_L=%04lu mV (%04lu mA), IS_R=%04lu mV (%04lu mA)",
+         leftMilliVolts, _leftMilliAmps, rightMilliVolts, _rightMilliAmps);
 }
 
 void HBridge::setLeftPwm(uint16_t duty) {

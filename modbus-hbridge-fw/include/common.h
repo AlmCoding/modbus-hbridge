@@ -3,8 +3,8 @@
 
 #include <Arduino.h>
 
-#define ENABLE_DEBUG_OUTPUT 1
-constexpr char FIRMWARE_VERSION[] = "V0.0.1";
+#define ENABLE_DEBUG_OUTPUT 0
+constexpr char FIRMWARE_VERSION[] = "V0.0.2";
 constexpr char DIVIDER[] = "<=====================================>";
 
 #if ENABLE_DEBUG_OUTPUT == 1

@@ -12,7 +12,7 @@
 #define DEBUG_ERROR(...)
 #endif
 
-// ESP32-C3 Pin Configuration (previous mapping)
+// ESP32-C3 Pin Configuration
 // H-Bridge Pins
 const uint8_t L_IS_PIN = 3;  // Left Current Sense
 const uint8_t L_EN_PIN = 4;  // Left Enable
@@ -70,6 +70,8 @@ void setup() {
 void loop() {
   // Process Modbus commands
   modbus.update();
+
+  hbridge.poll();
 
   // Toggle LED for heartbeat
   static uint32_t lastToggleTime = 0;

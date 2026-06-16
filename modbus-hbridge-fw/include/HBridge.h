@@ -11,6 +11,7 @@ public:
           uint8_t rEnPin, uint8_t rPwmPin);
 
   void begin();
+  void poll();
 
   void setLeftPwm(uint16_t duty);
   void setRightPwm(uint16_t duty);
@@ -25,6 +26,9 @@ private:
   friend class Modbus;
 
   static constexpr uint32_t kDefaultPwmFrequencyHz = 1000; // 1 kHz
+  static constexpr uint32_t kCurrentSensePollIntervalMs = 100;
+  static constexpr float kCurrentSenseMilliVoltToMilliAmpFactor = 7.0f;
+  static constexpr adc_attenuation_t kCurrentSenseAttenuation = ADC_11db;
   static constexpr uint8_t kLeftChannel = 0;
   static constexpr uint8_t kRightChannel = 1;
   static constexpr uint8_t kDutyInputBits = 16;
@@ -47,6 +51,10 @@ private:
 
   uint16_t _leftDuty16;
   uint16_t _rightDuty16;
+  uint16_t _leftMilliAmps;
+  uint16_t _rightMilliAmps;
+
+  uint32_t _lastCurrentSensePollMs;
 
   bool _leftEnabled;
   bool _rightEnabled;
