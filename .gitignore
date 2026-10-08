@@ -2,3 +2,5 @@
 modbus-hbridge-hw/modbus-hbridge-hw-backups/
 
 *.FCBak
+
+modbus-hbridge-hw/.history
