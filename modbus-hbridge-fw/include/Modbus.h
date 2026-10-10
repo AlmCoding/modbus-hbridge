@@ -32,7 +32,9 @@ private:
     REG_LEFT_FREQ = 0x04,
     REG_RIGHT_FREQ = 0x05,
     REG_ENABLE = 0x06, // Bit 0: left enable, Bit 1: right enable
-    REG_MAX,           // Sentinel value for bounds checking
+    REG_LEFT_CURRENT = 0x07,
+    REG_RIGHT_CURRENT = 0x08,
+    REG_MAX, // Sentinel value for bounds checking
   };
 
   static constexpr uint8_t kDefaultSlaveAddress = 0x01;

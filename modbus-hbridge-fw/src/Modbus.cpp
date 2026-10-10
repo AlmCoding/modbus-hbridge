@@ -268,6 +268,10 @@ uint16_t Modbus::readRegister(uint16_t address) {
     enableStatus |= _hbridge._rightEnabled ? 0x02 : 0x00;
     return enableStatus;
   }
+  case REG_LEFT_CURRENT:
+    return _hbridge.getLeftCurrent();
+  case REG_RIGHT_CURRENT:
+    return _hbridge.getRightCurrent();
   default:
     return 0;
   }

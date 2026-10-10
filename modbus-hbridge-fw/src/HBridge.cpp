@@ -17,9 +17,9 @@ HBridge::HBridge(uint8_t lIsPin, uint8_t lEnPin, uint8_t lPwmPin,
       _leftFreqHz(kDefaultPwmFrequencyHz), _rightFreqHz(kDefaultPwmFrequencyHz),
       _leftResolutionBits(getPwmResolutionBits(kDefaultPwmFrequencyHz)),
       _rightResolutionBits(getPwmResolutionBits(kDefaultPwmFrequencyHz)),
-  _leftDuty16(0), _rightDuty16(0), _leftMilliAmps(0),
-  _rightMilliAmps(0), _lastCurrentSensePollMs(0), _leftEnabled(true),
-  _rightEnabled(true), _initialized(false) {}
+      _leftDuty16(0), _rightDuty16(0), _leftMilliAmps(0), _rightMilliAmps(0),
+      _lastCurrentSensePollMs(0), _leftEnabled(true), _rightEnabled(true),
+      _initialized(false) {}
 
 void HBridge::begin() {
   if (_initialized) {
@@ -62,13 +62,13 @@ void HBridge::poll() {
 
   const uint32_t leftMilliVolts = analogReadMilliVolts(_lIsPin);
   const uint32_t rightMilliVolts = analogReadMilliVolts(_rIsPin);
-    _leftMilliAmps = static_cast<uint16_t>(
+  _leftMilliAmps = static_cast<uint16_t>(
       (leftMilliVolts * kCurrentSenseMilliVoltToMilliAmpFactor) + 0.5f);
-    _rightMilliAmps = static_cast<uint16_t>(
+  _rightMilliAmps = static_cast<uint16_t>(
       (rightMilliVolts * kCurrentSenseMilliVoltToMilliAmpFactor) + 0.5f);
 
   DEBUG_INFO("IS_L=%04lu mV (%04lu mA), IS_R=%04lu mV (%04lu mA)",
-         leftMilliVolts, _leftMilliAmps, rightMilliVolts, _rightMilliAmps);
+             leftMilliVolts, _leftMilliAmps, rightMilliVolts, _rightMilliAmps);
 }
 
 void HBridge::setLeftPwm(uint16_t duty) {
@@ -115,9 +115,9 @@ void HBridge::enableRight(bool enable) {
   digitalWrite(_rEnPin, enable ? HIGH : LOW);
 }
 
-uint16_t HBridge::getLeftCurrentMilliAmps() const { return _leftMilliAmps; }
+uint16_t HBridge::getLeftCurrent() const { return _leftMilliAmps; }
 
-uint16_t HBridge::getRightCurrentMilliAmps() const { return _rightMilliAmps; }
+uint16_t HBridge::getRightCurrent() const { return _rightMilliAmps; }
 
 uint8_t HBridge::getPwmResolutionBits(uint32_t freqHz) const {
   /*
