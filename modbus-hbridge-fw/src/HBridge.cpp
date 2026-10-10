@@ -115,6 +115,10 @@ void HBridge::enableRight(bool enable) {
   digitalWrite(_rEnPin, enable ? HIGH : LOW);
 }
 
+uint16_t HBridge::getLeftCurrentMilliAmps() const { return _leftMilliAmps; }
+
+uint16_t HBridge::getRightCurrentMilliAmps() const { return _rightMilliAmps; }
+
 uint8_t HBridge::getPwmResolutionBits(uint32_t freqHz) const {
   /*
   if (freqHz <= 1000U) {

@@ -22,6 +22,9 @@ public:
   void enableLeft(bool enable);
   void enableRight(bool enable);
 
+  uint16_t getLeftCurrentMilliAmps() const;
+  uint16_t getRightCurrentMilliAmps() const;
+
 private:
   friend class Modbus;
 
